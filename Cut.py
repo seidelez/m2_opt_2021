@@ -1,58 +1,5 @@
-from matplotlib import image, pyplot
+from matplotlib import pyplot
 import numpy as np
-
-class Mesh:
-    def __init__( self, positions = np.empty( [ 0, 2 ] ), triangles = np.empty( [ 0, 3 ] ) ):
-        self.positions = positions
-        self.triangles = triangles
-
-    def draw( self ):
-        pyplot.triplot( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
-        pyplot.show()
-
-    def draw_with_elem_field( self, field ):
-        pyplot.tripcolor( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles, facecolors = field )
-        pyplot.show()
-
-    @property
-    def nb_triangles( self ):
-        return self.triangles.shape[ 0 ]
-
-    def rotated( self, center, angle ):
-        R = np.array( [
-            [   np.cos( angle ), np.sin( angle ) ],
-            [ - np.sin( angle ), np.cos( angle ) ]
-        ] )
-        p = center + ( self.positions - center ) @ R
-        return Mesh( p, self.triangles )
-
-    def rect( p0, p1, di ):
-        # Utiliser meshgrid ?
-        p = []
-        for x in range( di[ 0 ] ):
-            for y in range( di[ 1 ] ):
-                p.append( [
-                    p0[ 0 ] + x * ( p1[ 0 ] - p0[ 0 ] ) / ( di[ 0 ] - 1 ),
-                    p0[ 1 ] + y * ( p1[ 1 ] - p0[ 1 ] ) / ( di[ 1 ] - 1 ),
-                ] )
-
-        t = []
-        for x in range( di[ 0 ] - 1 ):
-            for y in range( di[ 1 ] - 1 ):
-                t.append( [
-                    ( x + 0 ) + ( y + 0 ) * di[ 0 ],
-                    ( x + 1 ) + ( y + 0 ) * di[ 0 ],
-                    ( x + 0 ) + ( y + 1 ) * di[ 0 ],
-                ] )
-                t.append( [
-                    ( x + 1 ) + ( y + 0 ) * di[ 0 ],
-                    ( x + 1 ) + ( y + 1 ) * di[ 0 ],
-                    ( x + 0 ) + ( y + 1 ) * di[ 0 ],
-                ] )
-
-        return Mesh( np.array( p ), np.array( t ) )
-
-    
 
 class Cut:
     def __init__( self, mesh, beg_cut, end_cut, nb_cuts ):
@@ -182,28 +129,3 @@ class Cut:
                     area = 0.5 * np.abs( np.dot( x, np.roll( y, 1 ) ) - np.dot( y, np.roll( x, 1 ) ) )
                     res[ ray, num ] += area
         return res
-
-def proj_rot( mesh, center, angles, beg_x, end_x, len_x ):
-    res = []
-    for angle in angles:
-        rot_mesh = mesh.rotated( center, angle ) 
-        cut_mesh = Cut( rot_mesh, beg_x, end_x, len_x )
-        res.append( cut_mesh.proj_mat() )
-    return np.concatenate( res, axis = 0 )
-
-# maillage et rotations
-m = Mesh.rect( [ 0, 0 ], [ 1, 1 ], [ 10, 10 ] )
-a = np.linspace( 0, np.pi, 10 )
-p = proj_rot( m, np.array( [ 0.5, 0.5 ] ), a, 0, 1, 10 )
-
-# image avec un seul triangle à 1 + projection
-ieco = np.zeros( m.nb_triangles )
-ieco[ m.nb_triangles // 2 ] = 1
-proj = p @ ieco
-
-# pyplot.imshow( proj.reshape( [ a.size, -1 ] ) )
-# pyplot.show()
-
-# reconstruction avec Tikhonov de base
-reco = np.linalg.solve( p.T @ p + 1e-3 * np.eye( m.nb_triangles ), p.T @ proj )
-m.draw_with_elem_field( reco )
