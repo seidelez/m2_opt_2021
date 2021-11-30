@@ -18,6 +18,11 @@ class Mesh:
     def nb_triangles( self ):
         return self.triangles.shape[ 0 ]
 
+    def elem_field_from_img( self, img, beg_p, end_p ):
+        xy = ( self.positions[ self.triangles[ :, 0 ] ] + self.positions[ self.triangles[ :, 1 ] ] + self.positions[ self.triangles[ :, 2 ] ] ) / 3
+        xy = ( ( xy - beg_p ) * img.shape / ( end_p - beg_p ) ).astype( int )
+        return img[ xy[ :, 0 ], xy[ :, 1 ] ]
+
     def rotated( self, center, angle ):
         R = np.array( [
             [   np.cos( angle ), np.sin( angle ) ],
@@ -52,3 +57,16 @@ class Mesh:
 
         return Mesh( np.array( p ), np.array( t ) )
 
+    def disc( center, radius, step ):
+        import pygmsh
+
+        with pygmsh.geo.Geometry() as geom:
+            geom.add_circle( center, radius, mesh_size = step )
+            mesh = geom.generate_mesh()
+
+        triangles = None
+        for c in mesh.cells:
+            if c.type.startswith( "triangle" ):
+                triangles = c.data
+
+        return Mesh( mesh.points[ :, 0:2 ] * 1.0, triangles )
