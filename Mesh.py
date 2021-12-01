@@ -27,10 +27,23 @@ class Mesh:
     def nb_triangles( self ):
         return self.triangles.shape[ 0 ]
 
-    def elem_field_from_img( self, img, beg_p, end_p ):
-        xy = ( self.positions[ self.triangles[ :, 0 ] ] + self.positions[ self.triangles[ :, 1 ] ] + self.positions[ self.triangles[ :, 2 ] ] ) / 3
-        xy = ( ( xy - beg_p ) * img.shape / ( end_p - beg_p ) ).astype( int )
-        return img[ xy[ :, 0 ], xy[ :, 1 ] ]
+    def elem_field_from_img( self, img, beg_p, end_p, d = 5 ):
+        # var inter probes
+        vis = []
+        for nx in range( d ):
+            vx = ( nx + 0.5 ) / d
+            for ny in range( d - nx ):
+                vy = ( ny + 0.5 ) / d
+                vis.append( ( vx, vy ) )
+
+        res = np.zeros( self.nb_triangles )
+        for vi in vis:
+            xy = ( 1 - vi[ 0 ] - vi[ 1 ] ) * self.positions[ self.triangles[ :, 0 ] ] + \
+                 vi[ 0 ]                   * self.positions[ self.triangles[ :, 1 ] ] + \
+                 vi[ 1 ]                   * self.positions[ self.triangles[ :, 2 ] ]
+            xy = ( ( xy - beg_p ) * img.shape / ( end_p - beg_p ) ).astype( int )
+            res += img[ xy[ :, 0 ], xy[ :, 1 ] ]
+        return res / len( vis )
 
     def rotated( self, center, angle ):
         R = np.array( [

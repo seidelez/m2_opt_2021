@@ -22,7 +22,7 @@ p = proj_rot( m, np.array( [ 0, 0 ] ), a, -1, +1, s )
 proj = p @ f
 
 # ajout de bruit (très peu en fait)
-proj += np.random.normal( 0, 0.0025, proj.shape )
+proj += np.random.normal( 0, 0.0035, proj.shape )
 
 # reconstruction en forçant vers 0 ou 1. Pas spécialement rigoureux, résultat pas génial.
 lamb = 1e-5
