@@ -1,4 +1,5 @@
 from matplotlib import pyplot
+import matplotlib.tri as mtri
 import numpy as np
 
 class Mesh:
@@ -6,16 +7,24 @@ class Mesh:
         self.positions = positions
         self.triangles = triangles
 
+    @property
+    def nb_triangles( self ):
+        return self.triangles.shape[ 0 ]
+
+    @property
+    def nb_nodes( self ):
+        return self.positions.shape[ 0 ]
+
     def draw( self ):
         _, ax = pyplot.subplots()
-        ax.set_aspect('equal')
+        ax.set_aspect( 'equal' )
         ax.triplot( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
 
         pyplot.show()
 
     def draw_with_elem_field( self, field, img_name = "" ):
         _, ax = pyplot.subplots()
-        ax.set_aspect('equal')
+        ax.set_aspect( 'equal' )
         ax.tripcolor( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles, facecolors = field )
 
         if img_name:
@@ -23,27 +32,39 @@ class Mesh:
         else:
             pyplot.show()
 
-    @property
-    def nb_triangles( self ):
-        return self.triangles.shape[ 0 ]
+    def draw_with_nodal_field( self, field, img_name = "" ):
+        _, ax = pyplot.subplots()
+        ax.set_aspect( 'equal' )
 
-    def elem_field_from_img( self, img, beg_p, end_p, d = 5 ):
-        # var inter probes
-        vis = []
-        for nx in range( d ):
-            vx = ( nx + 0.5 ) / d
-            for ny in range( d - nx ):
-                vy = ( ny + 0.5 ) / d
-                vis.append( ( vx, vy ) )
+        # ax.tripcolor( , facecolors = field )
+        triang = mtri.Triangulation( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
+        ax.tricontourf( triang, field )
+        # ax.triplot(triang, 'ko-')
 
-        res = np.zeros( self.nb_triangles )
-        for vi in vis:
-            xy = ( 1 - vi[ 0 ] - vi[ 1 ] ) * self.positions[ self.triangles[ :, 0 ] ] + \
-                 vi[ 0 ]                   * self.positions[ self.triangles[ :, 1 ] ] + \
-                 vi[ 1 ]                   * self.positions[ self.triangles[ :, 2 ] ]
-            xy = ( ( xy - beg_p ) * img.shape / ( end_p - beg_p ) ).astype( int )
-            res += img[ xy[ :, 0 ], xy[ :, 1 ] ]
-        return res / len( vis )
+        if img_name:
+            pyplot.savefig( img_name )
+        else:
+            pyplot.show()
+
+    def elem_field_from_img( self, img, beg_p, end_p ):
+        from CutXY import CutXY
+
+        cxy = CutXY( self, beg_p[ 0 ], end_p[ 0 ], img.shape[ 0 ], beg_p[ 1 ], end_p[ 1 ], img.shape[ 1 ] )
+        M = cxy.elem_integration_matrix()
+
+        P = M.T @ M
+        P += 1e-6 * np.max( np.diag( P ) ) * np.eye( P.shape[ 0 ] )
+        return np.linalg.solve( P, M.T @ img.ravel() )
+
+    def nodal_field_from_img( self, img, beg_p, end_p ):
+        from CutXY import CutXY
+
+        cxy = CutXY( self, beg_p[ 0 ], end_p[ 0 ], img.shape[ 0 ], beg_p[ 1 ], end_p[ 1 ], img.shape[ 1 ] )
+        M = cxy.nodal_integration_matrix()
+
+        P = M.T @ M
+        P += 1e-6 * np.max( np.diag( P ) ) * np.eye( P.shape[ 0 ] )
+        return np.linalg.solve( P, M.T @ img.ravel() )
 
     def rotated( self, center, angle ):
         R = np.array( [

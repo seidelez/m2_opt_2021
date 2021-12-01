@@ -1,6 +1,11 @@
 from matplotlib import pyplot
 import numpy as np
 
+def area( poly ):
+    x = poly[ :, 0 ]
+    y = poly[ :, 1 ]
+    return 0.5 * np.abs( np.dot( x, np.roll( y, 1 ) ) - np.dot( y, np.roll( x, 1 ) ) )
+
 class Cut:
     def __init__( self, mesh, beg_cut, end_cut, nb_cuts ):
         self.cut_interps = {} # nb points dans polygone => variables d'interpolation pour chaque point de chaque coupe
@@ -15,10 +20,6 @@ class Cut:
         self.mesh = mesh
 
         self.make_cuts()
-        
-    def draw( self ):
-        pyplot.triplot( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
-        pyplot.show()
 
     def make_cuts( self ):
         # liste de coupe à concaténer pour obtenir les self.cut_...
@@ -108,24 +109,55 @@ class Cut:
         cut_pos.append( res_p )
         
     def draw( self ):
-        for n in range( 3, 6 ):
-            if n in self.cut_pos:
-                p = self.cut_pos[ n ]
-                l = np.empty( p.shape + np.array( [ 0, 1, 0 ] ) )
-                l[ :, 0:n, : ] = p
-                l[ :, n, : ] = p[ :, 0, : ]
-                for c in l:
-                    pyplot.plot( c[ :, 0 ], c[ :, 1 ] )
+        for n in self.cut_pos.keys():
+            p = self.cut_pos[ n ]
+            l = np.empty( p.shape + np.array( [ 0, 1, 0 ] ) )
+            l[ :, 0:n, : ] = p
+            l[ :, n, : ] = p[ :, 0, : ]
+            for c in l:
+                pyplot.plot( c[ :, 0 ], c[ :, 1 ] )
         pyplot.show()
 
-    def proj_mat( self ):
+    def proj_mat( self, nodal = False ):
         res = np.zeros( [ self.nb_cuts, self.mesh.triangles.shape[ 0 ] ] )
-        for npo in range( 3, 6 ):
+        for npo in self.cut_pos.keys():
             # TODO: en vectoriel
-            if npo in self.cut_pos:
-                for ( poly, num, ray ) in zip( self.cut_pos[ npo ], self.cut_trinums[ npo ], self.cut_raynums[ npo ] ):
-                    x = poly[ :, 0 ]
-                    y = poly[ :, 1 ]
-                    area = 0.5 * np.abs( np.dot( x, np.roll( y, 1 ) ) - np.dot( y, np.roll( x, 1 ) ) )
-                    res[ ray, num ] += area
+            for ( poly, num, ray ) in zip( self.cut_pos[ npo ], self.cut_trinums[ npo ], self.cut_raynums[ npo ] ):
+                res[ ray, num ] += area( poly )
+        return res
+
+    def as_Mesh( self ):
+        """
+          Return a triangular mesh with provenance info.
+
+          Nodes are not connected
+
+          Adds, `trinums`
+        """
+        trinums = []
+        raynums = []
+        p = []
+        t = []
+        o = 0
+        for n in self.cut_pos.keys():
+            c = self.cut_pos[ n ]
+            for nt in range( 2, c.shape[ 1 ] ):
+                trinums.append( self.cut_trinums[ n ] )
+                raynums.append( self.cut_raynums[ n ] )
+
+                q = 3 * c.shape[ 0 ]
+                t.append( o + np.arange( q ).reshape( [ -1, 3 ] ) )
+
+                pa = np.empty( [ 3 * c.shape[ 0 ], 2 ] )
+                pa[ 0::3, : ] = c[ :, 0     , : ]
+                pa[ 1::3, : ] = c[ :, nt - 1, : ]
+                pa[ 2::3, : ] = c[ :, nt - 0, : ]
+                p.append( pa )
+
+                o += q
+
+        from Mesh import Mesh
+        res = Mesh( np.concatenate( p, axis = 0 ), np.concatenate( t, axis = 0 ) )
+        res.trinums = np.concatenate( trinums, axis = 0 )
+        res.raynums = np.concatenate( raynums, axis = 0 )
         return res

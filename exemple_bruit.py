@@ -17,7 +17,7 @@ f = m.elem_field_from_img(
 m.draw_with_elem_field( f, "ref.png" )
 
 # operateur de projection
-a = np.linspace( 0, np.pi, s, endpoint=False )
+a = np.linspace( 0, np.pi, s, endpoint = False )
 p = proj_rot( m, np.array( [ 0, 0 ] ), a, -1, +1, s )
 proj = p @ f
 
