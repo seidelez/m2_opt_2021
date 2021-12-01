@@ -7,12 +7,21 @@ class Mesh:
         self.triangles = triangles
 
     def draw( self ):
-        pyplot.triplot( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
+        _, ax = pyplot.subplots()
+        ax.set_aspect('equal')
+        ax.triplot( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
+
         pyplot.show()
 
-    def draw_with_elem_field( self, field ):
-        pyplot.tripcolor( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles, facecolors = field )
-        pyplot.show()
+    def draw_with_elem_field( self, field, img_name = "" ):
+        _, ax = pyplot.subplots()
+        ax.set_aspect('equal')
+        ax.tripcolor( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles, facecolors = field )
+
+        if img_name:
+            pyplot.savefig( img_name )
+        else:
+            pyplot.show()
 
     @property
     def nb_triangles( self ):
