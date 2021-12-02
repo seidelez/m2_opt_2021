@@ -1,10 +1,20 @@
 from matplotlib import pyplot
 import numpy as np
 
-def area( poly ):
+def area_polygon( poly ):
     x = poly[ :, 0 ]
     y = poly[ :, 1 ]
     return 0.5 * np.abs( np.dot( x, np.roll( y, 1 ) ) - np.dot( y, np.roll( x, 1 ) ) )
+
+def integration_polygon( poly, nodal_values ):
+    res = 0
+    for j in range( 2, poly.shape[ 0 ] ):
+        i = j - 1
+        res += ( nodal_values[ 0 ] + nodal_values[ i ] + nodal_values[ j ] ) * (
+            ( poly[ i, 0 ] - poly[ 0, 0 ] ) * ( poly[ j, 1 ] - poly[ 0, 1 ] ) -
+            ( poly[ j, 0 ] - poly[ 0, 0 ] ) * ( poly[ i, 1 ] - poly[ 0, 1 ] )
+        )
+    return abs( res ) / 6
 
 class Cut:
     def __init__( self, mesh, beg_cut, end_cut, nb_cuts ):
@@ -119,11 +129,19 @@ class Cut:
         pyplot.show()
 
     def proj_mat( self, nodal = False ):
-        res = np.zeros( [ self.nb_cuts, self.mesh.triangles.shape[ 0 ] ] )
+        if nodal:
+            res = np.zeros( [ self.nb_cuts, self.mesh.nb_nodes ] )
+            for npo in self.cut_pos.keys():
+                for ( poly, num, ray, interp ) in zip( self.cut_pos[ npo ], self.cut_trinums[ npo ], self.cut_raynums[ npo ], self.cut_interps[ npo ] ):
+                    res[ ray, self.mesh.triangles[ num, 0 ] ] += integration_polygon( poly, 1 - interp[ :, 0 ] - interp[ :, 1 ] )
+                    res[ ray, self.mesh.triangles[ num, 1 ] ] += integration_polygon( poly, interp[ :, 0 ] )
+                    res[ ray, self.mesh.triangles[ num, 2 ] ] += integration_polygon( poly, interp[ :, 1 ] )
+            return res
+
+        res = np.zeros( [ self.nb_cuts, self.mesh.nb_triangles ] )
         for npo in self.cut_pos.keys():
-            # TODO: en vectoriel
             for ( poly, num, ray ) in zip( self.cut_pos[ npo ], self.cut_trinums[ npo ], self.cut_raynums[ npo ] ):
-                res[ ray, num ] += area( poly )
+                res[ ray, num ] += area_polygon( poly )
         return res
 
     def as_Mesh( self ):
@@ -134,30 +152,39 @@ class Cut:
 
           Adds, `trinums`
         """
+        positions = []
+        triangles = []
+        interps = []
         trinums = []
         raynums = []
-        p = []
-        t = []
         o = 0
         for n in self.cut_pos.keys():
+            i = self.cut_interps[ n ] # 
             c = self.cut_pos[ n ]
             for nt in range( 2, c.shape[ 1 ] ):
                 trinums.append( self.cut_trinums[ n ] )
                 raynums.append( self.cut_raynums[ n ] )
 
                 q = 3 * c.shape[ 0 ]
-                t.append( o + np.arange( q ).reshape( [ -1, 3 ] ) )
+                triangles.append( o + np.arange( q ).reshape( [ -1, 3 ] ) )
 
                 pa = np.empty( [ 3 * c.shape[ 0 ], 2 ] )
                 pa[ 0::3, : ] = c[ :, 0     , : ]
                 pa[ 1::3, : ] = c[ :, nt - 1, : ]
                 pa[ 2::3, : ] = c[ :, nt - 0, : ]
-                p.append( pa )
+                positions.append( pa )
+
+                inter = np.empty( [ 3 * c.shape[ 0 ], 2 ] )
+                inter[ 0::3, : ] = i[ :, 0     , : ]
+                inter[ 1::3, : ] = i[ :, nt - 1, : ]
+                inter[ 2::3, : ] = i[ :, nt - 0, : ]
+                interps.append( inter )
 
                 o += q
 
         from Mesh import Mesh
-        res = Mesh( np.concatenate( p, axis = 0 ), np.concatenate( t, axis = 0 ) )
+        res = Mesh( np.concatenate( positions, axis = 0 ), np.concatenate( triangles, axis = 0 ) )
+        res.interps = np.concatenate( interps, axis = 0 )
         res.trinums = np.concatenate( trinums, axis = 0 )
         res.raynums = np.concatenate( raynums, axis = 0 )
         return res

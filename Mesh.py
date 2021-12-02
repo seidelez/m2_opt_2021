@@ -1,4 +1,4 @@
-from matplotlib import pyplot
+from matplotlib import pyplot, use
 import matplotlib.tri as mtri
 import numpy as np
 
@@ -46,15 +46,19 @@ class Mesh:
         else:
             pyplot.show()
 
-    def elem_field_from_img( self, img, beg_p, end_p ):
+    def elem_field_from_img( self, img, beg_p, end_p, use_inversion = False ):
         from CutXY import CutXY
 
         cxy = CutXY( self, beg_p[ 0 ], end_p[ 0 ], img.shape[ 0 ], beg_p[ 1 ], end_p[ 1 ], img.shape[ 1 ] )
         M = cxy.elem_integration_matrix()
 
-        P = M.T @ M
-        P += 1e-6 * np.max( np.diag( P ) ) * np.eye( P.shape[ 0 ] )
-        return np.linalg.solve( P, M.T @ img.ravel() )
+        if use_inversion:
+            P = M.T @ M
+            P += 1e-6 * np.max( np.diag( P ) ) * np.eye( P.shape[ 0 ] )
+            return np.linalg.solve( P, M.T @ img.ravel() )
+
+        D = np.sum( M, axis = 0 )
+        return ( M.T @ img.ravel() ) / ( D + ( D == 0 ) )
 
     def nodal_field_from_img( self, img, beg_p, end_p ):
         from CutXY import CutXY
@@ -62,14 +66,13 @@ class Mesh:
         cxy = CutXY( self, beg_p[ 0 ], end_p[ 0 ], img.shape[ 0 ], beg_p[ 1 ], end_p[ 1 ], img.shape[ 1 ] )
         M = cxy.nodal_integration_matrix()
 
-        P = M.T @ M
-        P += 1e-6 * np.max( np.diag( P ) ) * np.eye( P.shape[ 0 ] )
-        return np.linalg.solve( P, M.T @ img.ravel() )
+        D = np.sum( M, axis = 0 )
+        return ( M.T @ img.ravel() ) / ( D + ( D == 0 ) )
 
     def rotated( self, center, angle ):
         R = np.array( [
-            [   np.cos( angle ), np.sin( angle ) ],
-            [ - np.sin( angle ), np.cos( angle ) ]
+            [ + np.cos( angle ), + np.sin( angle ) ],
+            [ - np.sin( angle ), + np.cos( angle ) ]
         ] )
         p = center + ( self.positions - center ) @ R
         return Mesh( p, self.triangles )
@@ -77,16 +80,16 @@ class Mesh:
     def rect( p0, p1, di ):
         # Utiliser meshgrid ?
         p = []
-        for x in range( di[ 0 ] ):
-            for y in range( di[ 1 ] ):
+        for y in range( di[ 1 ] ):
+            for x in range( di[ 0 ] ):
                 p.append( [
                     p0[ 0 ] + x * ( p1[ 0 ] - p0[ 0 ] ) / ( di[ 0 ] - 1 ),
                     p0[ 1 ] + y * ( p1[ 1 ] - p0[ 1 ] ) / ( di[ 1 ] - 1 ),
                 ] )
 
         t = []
-        for x in range( di[ 0 ] - 1 ):
-            for y in range( di[ 1 ] - 1 ):
+        for y in range( di[ 1 ] - 1 ):
+            for x in range( di[ 0 ] - 1 ):
                 t.append( [
                     ( x + 0 ) + ( y + 0 ) * di[ 0 ],
                     ( x + 1 ) + ( y + 0 ) * di[ 0 ],
