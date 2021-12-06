@@ -69,6 +69,61 @@ class Mesh:
         D = np.sum( M, axis = 0 )
         return ( M.T @ img.ravel() ) / ( D + ( D == 0 ) )
 
+    def nodal_sampling( self, point_list ):
+        """
+           Given a list of positions (shape=[nb_points,2]), get an array of triangle indices and interpolation variables
+        """
+
+        # limits
+        min_x = np.min( self.positions[ :, 0 ] )
+        min_y = np.min( self.positions[ :, 1 ] )
+        max_x = np.max( self.positions[ :, 0 ] )
+        max_y = np.max( self.positions[ :, 1 ] )
+
+        # grid size and init
+        csize = 0.25 * ( ( max_x - min_x ) * ( max_y - min_y ) / self.nb_triangles ) ** 0.5
+        nx = int( np.ceil( ( max_x - min_x ) / csize ) )
+        ny = int( np.ceil( ( max_y - min_y ) / csize ) )
+
+        grid = np.empty( [ nx, ny ], dtype = object )
+        for x in range( nx ):
+            for y in range( ny ):
+                grid[ x, y ] = []
+
+        # add the triangles in box lists
+        for num_tr, tr in enumerate( self.triangles ):
+            l_pos = self.positions[ tr, : ]
+            lin_x = max( 0 , int( np.floor( ( np.min( l_pos[ :, 0 ] ) - min_x ) * nx / ( max_x - min_x ) ) ) )
+            lin_y = max( 0 , int( np.floor( ( np.min( l_pos[ :, 1 ] ) - min_y ) * ny / ( max_y - min_y ) ) ) )
+            lax_x = min( nx, int( np.ceil ( ( np.max( l_pos[ :, 0 ] ) - min_x ) * nx / ( max_x - min_x ) ) ) )
+            lax_y = min( ny, int( np.ceil ( ( np.max( l_pos[ :, 1 ] ) - min_y ) * ny / ( max_y - min_y ) ) ) )
+            for x in range( lin_x, lax_x ):
+                for y in range( lin_y, lax_y ):
+                    grid[ x, y ].append( num_tr )
+
+        #
+        triangles = np.full( [ point_list.shape[ 0 ] ], -1 )
+        var_interps = np.full( [ point_list.shape[ 0 ], 2 ], np.nan )
+        for ( num_point, point ) in enumerate( point_list ):
+            # pos of the point in the grid
+            grid_pos_x = min( nx - 1, max( 0, int( np.floor( ( point[ 0 ] - min_x ) * nx / ( max_x - min_x ) ) ) ) )
+            grid_pos_y = min( ny - 1, max( 0, int( np.floor( ( point[ 1 ] - min_y ) * ny / ( max_y - min_y ) ) ) ) )
+
+            # find the enclosing triangle
+            for num_triangle in grid[ grid_pos_x, grid_pos_y ]:
+                pt = self.positions[ self.triangles[ num_triangle ], : ]
+                ma = np.array( [ [ pt[ 1, 0 ] - pt[ 0, 0 ], pt[ 2, 0 ] - pt[ 0, 0 ] ], [ pt[ 1, 1 ] - pt[ 0, 1 ], pt[ 2, 1 ] - pt[ 0, 1 ] ] ] )
+                ve = np.array( [ point[ 0 ] - pt[ 0, 0 ], point[ 1 ] - pt[ 0, 1 ] ] )
+                vi = np.linalg.solve( ma, ve )
+                ep = 1e-6
+
+                if vi[ 0 ] > - ep and vi[ 1 ] > - ep and 1 - vi[ 0 ] - vi[ 1 ] > - ep:
+                    triangles[ num_point ] = num_triangle
+                    var_interps[ num_point, : ] = vi
+                    break
+
+        return ( triangles, var_interps )
+
     def rotated( self, center, angle ):
         R = np.array( [
             [ + np.cos( angle ), + np.sin( angle ) ],
@@ -96,8 +151,8 @@ class Mesh:
                     ( x + 0 ) + ( y + 1 ) * di[ 0 ],
                 ] )
                 t.append( [
-                    ( x + 1 ) + ( y + 0 ) * di[ 0 ],
                     ( x + 1 ) + ( y + 1 ) * di[ 0 ],
+                    ( x + 1 ) + ( y + 0 ) * di[ 0 ],
                     ( x + 0 ) + ( y + 1 ) * di[ 0 ],
                 ] )
 
