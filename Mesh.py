@@ -1,4 +1,4 @@
-from matplotlib import pyplot, use
+from matplotlib import pyplot
 import matplotlib.tri as mtri
 import numpy as np
 
@@ -115,4 +115,39 @@ class Mesh:
             if c.type.startswith( "triangle" ):
                 triangles = c.data
 
-        return Mesh( mesh.points[ :, 0:2 ] * 1.0, triangles )
+        res = Mesh( mesh.points[ :, 0:2 ] * 1.0, triangles )
+        res.remove_unused_nodes()
+        return res
+
+    def remove_unused_nodes( self ):
+        used = np.zeros( [ self.nb_nodes ], dtype = bool )
+        used[ np.ravel( self.triangles ) ] = True
+        idx = np.cumsum( used ) - 1
+
+        self.positions = self.positions[ used, : ] * 1.0
+        self.triangles = idx[ self.triangles ]
+
+    def grad_matrices( self ):
+        """ 
+           return ( mat_x, max_y ) where mat_i * nodal_value return [ grad_i ]_e giving a value for each element e
+        """
+        res_x = np.zeros( [ self.nb_triangles, self.nb_nodes ] )
+        res_y = np.zeros( [ self.nb_triangles, self.nb_nodes ] )
+        for ( num_tr, tr ) in enumerate( self.triangles ):
+            x1 = self.positions[ tr[ 1 ], 0 ] - self.positions[ tr[ 0 ], 0 ]
+            x2 = self.positions[ tr[ 2 ], 0 ] - self.positions[ tr[ 0 ], 0 ]
+            y1 = self.positions[ tr[ 1 ], 1 ] - self.positions[ tr[ 0 ], 1 ]
+            y2 = self.positions[ tr[ 2 ], 1 ] - self.positions[ tr[ 0 ], 1 ]
+            dt = x1 * y2 - x2 * y1
+
+            res_x[ num_tr, tr[ 0 ] ] = ( y1 - y2 ) / dt
+            res_x[ num_tr, tr[ 1 ] ] = + y2 / dt
+            res_x[ num_tr, tr[ 2 ] ] = - y1 / dt
+
+            res_y[ num_tr, tr[ 0 ] ] = ( x1 - x2 ) / dt
+            res_y[ num_tr, tr[ 1 ] ] = + x2 / dt
+            res_y[ num_tr, tr[ 2 ] ] = - x1 / dt
+
+
+        return ( res_x, res_y )
+

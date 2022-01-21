@@ -16,12 +16,12 @@ f = m.nodal_field_from_img(
 # m.draw_with_nodal_field( f )
 
 # operateur de projection
-a = np.linspace( 0, np.pi, s, endpoint=False )
-p = proj_rot( m, np.array( [ 0, 0 ] ), a, -1, +1, s, nodal = True )
+a = np.linspace( 0, np.pi, 2 * s, endpoint = False )
+p = proj_rot( m, np.array( [ 0, 0 ] ), a, -1, +1, 2 * s, nodal = True )
 proj = p @ f
 
 # # ajout de bruit (très peu en fait)
 # proj += np.random.normal( 0, 0.0035, proj.shape )
 
-reco = np.linalg.solve( p.T @ p + 1e-4 * np.eye( m.nb_nodes ), p.T @ proj )
+reco = np.linalg.solve( p.T @ p + 1e-6 * np.eye( m.nb_nodes ), p.T @ proj )
 m.draw_with_nodal_field( reco )
