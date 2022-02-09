@@ -38,7 +38,7 @@ class Mesh:
 
         # ax.tripcolor( , facecolors = field )
         triang = mtri.Triangulation( self.positions[ :, 0 ], self.positions[ :, 1 ], triangles = self.triangles )
-        ax.tricontourf( triang, field )
+        ax.tricontourf( triang, field)
         # ax.triplot(triang, 'ko-')
 
         if img_name:
