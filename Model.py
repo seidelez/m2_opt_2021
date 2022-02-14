@@ -112,6 +112,7 @@ def modelgrad(m, p, proj, Gx, Gy):
 
 def model_euler(m, p, proj, Gx, Gy):
     x = cp.Variable(m.nb_nodes)
+    aux = cp.Variable(m.nb_nodes)
     constraints = []
     regularizer = 0
 
@@ -128,13 +129,5 @@ def model_euler(m, p, proj, Gx, Gy):
     model = cp.Problem( cp.Minimize(objective) , constraints )
     return x, model
     
-class Model:
-    def __init__(self, x, objective, constraints):
-        self.objectives = objective
-        self.x = x
-        self.constraints = constraints
-        self.problem = cp.Problem( cp.Minimize( objective ) , constraints ) 
 
-    def solve( self , solver = CPLEX, verbose=False ):
-        return self.problem.solve( solver = solver, verbose=verbose)
 

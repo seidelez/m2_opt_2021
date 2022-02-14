@@ -203,6 +203,93 @@ class Mesh:
             res_y[ num_tr, tr[ 1 ] ] = + x2 / dt
             res_y[ num_tr, tr[ 2 ] ] = - x1 / dt
 
-
         return ( res_x, res_y )
+
+
+    def tv( self ):
+        """ 
+           return ( mat_x, max_y ) where mat_i * nodal_value return [ grad_i ]_e giving a value for each element e
+        """
+        eps = 0.001
+        res_tv = np.zeros( [ self.nb_nodes, self.nb_nodes ] )
+        for ( num_tr, tr ) in enumerate( self.triangles ):
+            x0 = self.positions[ tr[ 0 ], 0 ] 
+            x1 = self.positions[ tr[ 1 ], 0 ] 
+            x2 = self.positions[ tr[ 2 ], 0 ] 
+            y0 = self.positions[ tr[ 0 ], 1 ] 
+            y1 = self.positions[ tr[ 1 ], 1 ] 
+            y2 = self.positions[ tr[ 2 ], 1 ] 
+
+            if np.abs(x0-x1) < eps or np.abs(y0-y1) < eps:
+                res_tv[tr[0],tr[1]] = 1
+                res_tv[tr[1],tr[0]] = 1
+            if np.abs(x2-x1) < eps or np.abs(y2-y1) < eps:
+                res_tv[tr[2],tr[1]] = 1
+                res_tv[tr[1],tr[2]] = 1
+            if np.abs(x0-x2) < eps or np.abs(y0-y2) < eps:
+                res_tv[tr[0],tr[2]] = 1
+                res_tv[tr[2],tr[0]] = 1
+        
+        D = []
+        for i in range(self.nb_nodes):
+            for j in range(i, self.nb_nodes):
+                D_file = np.zeros( self.nb_nodes )
+                if res_tv[i,j]:
+                    D_file[i] = 1
+                    D_file[j] = -1
+                    D.append(D_file)
+        
+        D = np.array(D)
+
+        return D
+
+    def lagrangian(self, eps = 0.001):
+        res_tv = np.zeros( [ self.nb_nodes, self.nb_nodes ] )
+        appearances = np.zeros( self.nb_nodes )
+        for ( num_tr, tr ) in enumerate( self.triangles ):
+            x0 = self.positions[ tr[ 0 ], 0 ] 
+            x1 = self.positions[ tr[ 1 ], 0 ] 
+            x2 = self.positions[ tr[ 2 ], 0 ] 
+            y0 = self.positions[ tr[ 0 ], 1 ] 
+            y1 = self.positions[ tr[ 1 ], 1 ] 
+            y2 = self.positions[ tr[ 2 ], 1 ] 
+
+            if np.abs(x0-x1) < eps or np.abs(y0-y1) < eps:
+                res_tv[tr[0],tr[1]] = 1
+                res_tv[tr[1],tr[0]] = 1
+            if np.abs(x2-x1) < eps or np.abs(y2-y1) < eps:
+                res_tv[tr[2],tr[1]] = 1
+                res_tv[tr[1],tr[2]] = 1
+            if np.abs(x0-x2) < eps or np.abs(y0-y2) < eps:
+                res_tv[tr[0],tr[2]] = 1
+                res_tv[tr[2],tr[0]] = 1
+
+            appearances[tr[0]] += 1 
+            appearances[tr[1]] += 1 
+            appearances[tr[2]] += 1 
+            
+        D =  []
+        for i in range( self.nb_nodes ):
+            D_file = np.zeros(self.nb_nodes)
+            if appearances[i] >= 6:
+                D_file[i] = -4
+                for j in range( self.nb_nodes ):
+                    if res_tv[i,j]:
+                        D_file[j] = 1
+            D.append(D_file)
+
+        D = np.array(D)
+        D = D/np.linalg.norm(self.triangles[0,1] , self.triangles[0,0])**2
+
+        return D
+
+    def laplace_beltrami(self):
+        return 1
+        
+
+
+
+
+
+
 

@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 from matplotlib import pyplot
 from proj import proj_rot
 
-s = 5
+s = 10
 m = Mesh.disc( center = [ 0, 0 ], radius = 1, step = 2 / s )
 ( Gx, Gy ) = m.grad_matrices()
 
@@ -50,8 +50,8 @@ reco = np.linalg.solve( p.T @ p + 1e-6 * np.eye( m.nb_nodes ), p.T @ proj )
 #x2, m2 = Model.model_curv( m, p, proj, Gx, Gy)
 x0 = reco
 print(x0.shape)
-rec1 =  minimize(losses.final_total, x0, args=(Gx, Gy, p, proj, losses.mean_curv))
-print(rec1)
+#rec1 =  minimize(losses.final_total, x0, args=(Gx, Gy, p, proj, losses.mean_curv))
+rec1 = rec1.x
 
 #m1.solve()
 #m2.solve()
