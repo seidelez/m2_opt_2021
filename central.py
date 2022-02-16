@@ -6,13 +6,17 @@ from scipy.optimize import minimize
 from matplotlib import pyplot
 from proj import proj_rot
 
-s = 10
+s = 20
 m = Mesh.disc( center = [ 0, 0 ], radius = 1, step = 2 / s )
 ( Gx, Gy ) = m.grad_matrices()
+Lap = m.laplacian()
+tv  = m.tv()
 
 # test avec champ connu
 print( Gx.shape )
 print( Gy.shape )
+print( Lap.shape)
+print(" tv ", tv.shape )
 print( m.nb_nodes )
 print( m.nb_triangles )
 #print( Gx.T @ np.ones( m.nb_triangles )  )
@@ -46,17 +50,17 @@ rec0 = np.linalg.solve( p.T @ p , p.T @ proj )
 reco = np.linalg.solve( p.T @ p + 1e-6 * np.eye( m.nb_nodes ), p.T @ proj )
 #m.draw_with_nodal_field( rec0 )
 #m.draw_with_nodal_field( reco )
-#x1, m1 = Model.model_curv( m, p, proj, Gx, Gy)
-#x2, m2 = Model.model_curv( m, p, proj, Gx, Gy)
+x1, m1 = Model.model_tv( m, p, proj, tv)
+#x2, m2 = Model.model_anisotropic( m, p, proj, Gx, Gy, Lap)
 x0 = reco
-print(x0.shape)
+#print(x0.shape)
 #rec1 =  minimize(losses.final_total, x0, args=(Gx, Gy, p, proj, losses.mean_curv))
-rec1 = rec1.x
+#rec1 = rec1.x
 
-#m1.solve()
+m1.solve()
 #m2.solve()
 
-#rec1 = x1.value
+rec1 = x1.value
 #rec2 = x2.value
 
 

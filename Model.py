@@ -129,5 +129,57 @@ def model_euler(m, p, proj, Gx, Gy):
     model = cp.Problem( cp.Minimize(objective) , constraints )
     return x, model
     
+def model_tv(m, p, proj, tv):
+    x = cp.Variable(m.nb_nodes)
+    constraints = []
+    regularizer = cp.norm(tv@x, 1)
 
+    objective = cp.norm((p.T @ (p @ x)  -   p.T @ proj )) + 8e-8*regularizer 
+    model = cp.Problem( cp.Minimize(objective) , constraints )
+    return x, model    
+    
 
+def model_anisotropic(m, p, proj, Gx, Gy, Lap):
+    x = cp.Variable(m.nb_nodes)
+    constraints = []
+    regularizer = 0
+
+    aux = cp.hstack( [Gx @ Lap @ x, Gy @ Lap @ x] ) 
+    grad_norm = cp.hstack( [-Gy@x, Gx@x] )
+
+    for i in range(Gx.shape[0]):
+        regularizer += cp.abs ( aux[i].T @ grad_norm[i] )
+
+    objective = cp.norm((p.T @ p )@x  -   p.T @ proj ) + 8e-8*regularizer 
+    model = cp.Problem( cp.Minimize(objective) , constraints )
+    return x, model
+
+def model_v(m, p, proj, Gx, Gy, Lap, v0):
+    x = cp.Variable(m.nb_nodes)
+    constraints = []
+    regularizer = 0
+
+    aux = cp.hstack( [Gx @ Lap @ x, Gy @ Lap @ x] ) 
+    grad_norm = cp.hstack( [-Gy@x, Gx@x] ) 
+
+    for i in range(Gx.shape[0]):
+        regularizer += cp.abs ( v0 @ grad_norm[i] )
+
+    objective = cp.norm((p.T @ p )@x  -   p.T @ proj ) + 8e-8*regularizer 
+    model = cp.Problem( cp.Minimize(objective) , constraints )
+    return x, model
+
+def model_angle_var(m, p, proj, Gx, Gy):
+    x = cp.Variable(m.nb_nodes)
+    constraints = []
+    regularizer = 0
+    grad_norm = cp.hstack( [-Gy@x, Gx@x] )
+    
+    for i in range(m.nb_elem):
+        for j in range(m.nb_elem):
+            if m.neighbour(i,j):
+                regularizer += cp.abs(grad_norm[i], grad_norm[j])
+
+    objective = cp.norm((p.T @ p )@x  -   p.T @ proj ) + 8e-8*regularizer 
+    model = cp.Problem( cp.Minimize(objective) , constraints )
+    return x, model

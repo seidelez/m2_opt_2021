@@ -210,7 +210,7 @@ class Mesh:
         """ 
            return ( mat_x, max_y ) where mat_i * nodal_value return [ grad_i ]_e giving a value for each element e
         """
-        eps = 0.001
+        eps = 0.06
         res_tv = np.zeros( [ self.nb_nodes, self.nb_nodes ] )
         for ( num_tr, tr ) in enumerate( self.triangles ):
             x0 = self.positions[ tr[ 0 ], 0 ] 
@@ -220,21 +220,29 @@ class Mesh:
             y1 = self.positions[ tr[ 1 ], 1 ] 
             y2 = self.positions[ tr[ 2 ], 1 ] 
 
-            if np.abs(x0-x1) < eps or np.abs(y0-y1) < eps:
+            l01 = np.linalg.norm(self.positions[ tr[ 0 ] ] - self.positions[ tr[ 1 ] ] )
+            l12 = np.linalg.norm(self.positions[ tr[ 1 ] ] - self.positions[ tr[ 2 ] ] )
+            l02 = np.linalg.norm(self.positions[ tr[ 0 ] ] - self.positions[ tr[ 2 ] ] )
+
+            distances = np.array([l01,l12,l02])
+            argmax = np.argmax(distances)
+
+            if argmax != 0:
                 res_tv[tr[0],tr[1]] = 1
                 res_tv[tr[1],tr[0]] = 1
-            if np.abs(x2-x1) < eps or np.abs(y2-y1) < eps:
+            if argmax != 1:
                 res_tv[tr[2],tr[1]] = 1
                 res_tv[tr[1],tr[2]] = 1
-            if np.abs(x0-x2) < eps or np.abs(y0-y2) < eps:
+            if argmax != 2:
                 res_tv[tr[0],tr[2]] = 1
                 res_tv[tr[2],tr[0]] = 1
         
         D = []
         for i in range(self.nb_nodes):
-            for j in range(i, self.nb_nodes):
+            for j in range(self.nb_nodes):
                 D_file = np.zeros( self.nb_nodes )
                 if res_tv[i,j]:
+                    #print("vecinos i ", i ," j ", j)
                     D_file[i] = 1
                     D_file[j] = -1
                     D.append(D_file)
@@ -243,7 +251,7 @@ class Mesh:
 
         return D
 
-    def lagrangian(self, eps = 0.001):
+    def laplacian(self, eps = 0.03):
         res_tv = np.zeros( [ self.nb_nodes, self.nb_nodes ] )
         appearances = np.zeros( self.nb_nodes )
         for ( num_tr, tr ) in enumerate( self.triangles ):
@@ -254,37 +262,50 @@ class Mesh:
             y1 = self.positions[ tr[ 1 ], 1 ] 
             y2 = self.positions[ tr[ 2 ], 1 ] 
 
-            if np.abs(x0-x1) < eps or np.abs(y0-y1) < eps:
+            l01 = np.linalg.norm(self.positions[ tr[ 0 ] ] - self.positions[ tr[ 1 ] ] )
+            l12 = np.linalg.norm(self.positions[ tr[ 1 ] ] - self.positions[ tr[ 2 ] ] )
+            l02 = np.linalg.norm(self.positions[ tr[ 0 ] ] - self.positions[ tr[ 2 ] ] )
+
+            distances = np.array([l01,l12,l02])
+            argmax = np.argmax(distances)
+
+            if argmax != 0:
                 res_tv[tr[0],tr[1]] = 1
                 res_tv[tr[1],tr[0]] = 1
-            if np.abs(x2-x1) < eps or np.abs(y2-y1) < eps:
+            if argmax != 1:
                 res_tv[tr[2],tr[1]] = 1
                 res_tv[tr[1],tr[2]] = 1
-            if np.abs(x0-x2) < eps or np.abs(y0-y2) < eps:
+            if argmax != 2:
                 res_tv[tr[0],tr[2]] = 1
                 res_tv[tr[2],tr[0]] = 1
-
-            appearances[tr[0]] += 1 
-            appearances[tr[1]] += 1 
-            appearances[tr[2]] += 1 
             
-        D =  []
+        D =  np.zeros( [ self.nb_nodes, self.nb_nodes ] )
         for i in range( self.nb_nodes ):
-            D_file = np.zeros(self.nb_nodes)
-            if appearances[i] >= 6:
-                D_file[i] = -4
-                for j in range( self.nb_nodes ):
-                    if res_tv[i,j]:
-                        D_file[j] = 1
-            D.append(D_file)
+            for j in range( self.nb_nodes ):
+                if res_tv[i,j]:
+                    D[i,j] = 1
+            D[i,i] = -4
 
-        D = np.array(D)
-        D = D/np.linalg.norm(self.triangles[0,1] , self.triangles[0,0])**2
+        D = D/np.linalg.norm(self.triangles[0,1] - self.triangles[0,0])**2
 
         return D
 
+    #returns true if the triangles i and j share an edge
+    def neighbours(self, i, j):
+        tri1 = self.triangles(i)
+        tri2 = self.triangles(j)
+
+        common = 0
+        for l in tri1:
+            for k in tri2:
+                if l == k:
+                    common +=1
+        return common >= 2 
+
     def laplace_beltrami(self):
-        return 1
+        C = np.zeros( [ self.nb_nodes, self.nb_nodes ] )
+
+        return C
         
 
 
